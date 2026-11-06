@@ -1,0 +1,25 @@
+-r ../../requirements.txt
+# hamer: inference dependencies; run pip from the repository root.
+# Native extensions require the active Conda Torch and CUDA toolchain; use pip --no-build-isolation.
+omegaconf>=2.3,<3
+einops==0.8.1
+yacs==0.1.8
+timm==0.9.12
+pyrender==0.1.45
+pytorch-lightning==2.1.4
+torchmetrics==1.3.2
+scikit-image==0.24.0
+pandas==1.5.3
+tqdm==4.66.2
+hydra-core>=1.3,<1.4
+rich==13.7.1
+webdataset==1.0.2
+ultralytics==8.3.40
+ninja
+fvcore==0.1.5.post20221221
+iopath==0.1.10
+json_tricks==3.17.3
+munkres==2.0.0
+mmcv==1.5.0
+xtcocotools==1.14.3
+./baselines/hamer/third_party/detectron2

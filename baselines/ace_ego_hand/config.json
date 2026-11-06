@@ -1,0 +1,17 @@
+{
+  "default": "egohandbench",
+  "versions": {
+    "egohandbench": {
+      "weights": {
+        "ace_ego_hand": "checkpoints/ace_ego_hand/checkpoints/ace_ego_hand_retrain.pt"
+      },
+      "resources": {
+        "mano": "checkpoints/mano",
+        "ace_ego_hand.mano": "checkpoints/ace_ego_hand/data/mano",
+        "ace_ego_hand.backbone": "checkpoints/ace_ego_hand/ckpt/Wan2.2-Fun-5B-Control/diffusion_pytorch_model.safetensors",
+        "ace_ego_hand.vae": "checkpoints/ace_ego_hand/ckpt/Wan2.2-Fun-5B-Control/Wan2.2_VAE.pth",
+        "ace_ego_hand.caption": "checkpoints/ace_ego_hand/cache/caption_embed.pt"
+      }
+    }
+  }
+}

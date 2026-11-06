@@ -1,0 +1,31 @@
+{
+  "default": "official",
+  "versions": {
+    "official": {
+      "weights": {
+        "hamer": "checkpoints/hamer/hamer_ckpts/checkpoints/hamer.ckpt",
+        "handflow": "checkpoints/handflow/handflow_denoiser.pt"
+      },
+      "resources": {
+        "mano": "checkpoints/mano",
+        "handflow.normalization": "checkpoints/handflow/normalization_stats.npz",
+        "hamer.data": "checkpoints/hamer",
+        "hamer.config": "checkpoints/hamer/hamer_ckpts/model_config.yaml",
+        "wilor.detector": "checkpoints/wilor/pretrained_models/detector.pt"
+      }
+    },
+    "egohandbench": {
+      "weights": {
+        "hamer": "checkpoints/hamer/hamer_ckpts/checkpoints/hamer.ckpt",
+        "handflow": "checkpoints/handflow/handflow_denoiser.pt"
+      },
+      "resources": {
+        "mano": "checkpoints/mano",
+        "handflow.normalization": "checkpoints/handflow/normalization_stats.npz",
+        "hamer.data": "checkpoints/hamer",
+        "hamer.config": "checkpoints/hamer/hamer_ckpts/model_config.yaml",
+        "wilor.detector": "checkpoints/wilor/pretrained_models/detector.pt"
+      }
+    }
+  }
+}

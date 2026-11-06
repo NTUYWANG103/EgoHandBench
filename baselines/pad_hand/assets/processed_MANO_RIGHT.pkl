@@ -1,0 +1,1 @@
+../../../checkpoints/pad_hand/official/checkpoints/pad_hand/assets/processed_MANO_RIGHT.pkl

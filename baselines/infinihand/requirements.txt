@@ -1,0 +1,5 @@
+# infinihand: inference dependencies; run pip from the repository root.
+-r ../../requirements.txt
+einops==0.8.1
+timm==0.9.12
+yacs==0.1.8

@@ -1,0 +1,1 @@
+../../../../../checkpoints/omnihands/official/checkpoints/omnihands/hands_4d/misc/mano/MANO_LEFT.pkl
