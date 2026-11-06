@@ -1,0 +1,11 @@
+License notice retained verbatim from AnyHand README.md:
+https://github.com/chen-si-cs/AnyHand/blob/de76afabeb49b6d58513ba895755dfdda39f8410/README.md
+
+## License
+
+- **AnyHand checkpoints**: [CC-BY-NC-ND](LICENSE)
+- **WiLoR codebase**: [CC-BY-NC-ND](https://github.com/rolpotamias/WiLoR)
+- **MANO model**: [MANO license](https://mano.is.tue.mpg.de/license.html)
+- **Detector** (`detector.pt`): [Ultralytics license](https://github.com/ultralytics/ultralytics)
+
+---

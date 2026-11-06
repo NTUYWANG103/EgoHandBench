@@ -1,0 +1,21 @@
+{
+  "default": "official",
+  "versions": {
+    "official": {
+      "weights": {
+        "mint": "checkpoints/mint/checkpoints/model.safetensors"
+      },
+      "resources": {
+        "mano": "checkpoints/mano"
+      }
+    },
+    "egohandbench": {
+      "weights": {
+        "mint": "checkpoints/mint/checkpoints/mint.safetensors"
+      },
+      "resources": {
+        "mano": "checkpoints/mano"
+      }
+    }
+  }
+}

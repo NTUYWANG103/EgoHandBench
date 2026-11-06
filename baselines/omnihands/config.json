@@ -1,0 +1,29 @@
+{
+  "default": "official",
+  "versions": {
+    "official": {
+      "weights": {
+        "omnihands": "checkpoints/omnihands/Demo_Video.pth"
+      },
+      "resources": {
+        "mano": "checkpoints/mano",
+        "omnihands.mean_params": "checkpoints/omnihands/mano_files/mano_mean_params.npz",
+        "omnihands.config": "checkpoints/omnihands/checkpoints/config_video.yaml",
+        "vitdet": "checkpoints/vitdet/model_final_f05665.pkl",
+        "vitpose": "checkpoints/hamer/vitpose_ckpts/vitpose+_huge/wholebody.pth"
+      }
+    },
+    "egohandbench": {
+      "weights": {
+        "omnihands": "checkpoints/omnihands/omnihands.pth"
+      },
+      "resources": {
+        "mano": "checkpoints/mano",
+        "omnihands.mean_params": "checkpoints/omnihands/mano_files/mano_mean_params.npz",
+        "omnihands.config": "checkpoints/omnihands/checkpoints/config_video.yaml",
+        "vitdet": "checkpoints/vitdet/model_final_f05665.pkl",
+        "vitpose": "checkpoints/hamer/vitpose_ckpts/vitpose+_huge/wholebody.pth"
+      }
+    }
+  }
+}

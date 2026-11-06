@@ -1,0 +1,1 @@
+../../../../../../checkpoints/interwild/official/checkpoints/interwild/common/utils/human_model_files/mano/MANO_LEFT.pkl

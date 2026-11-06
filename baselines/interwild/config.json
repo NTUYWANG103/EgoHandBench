@@ -1,0 +1,23 @@
+{
+  "default": "official",
+  "versions": {
+    "official": {
+      "weights": {
+        "interwild": "checkpoints/interwild/snapshot_6_ego.pth"
+      },
+      "resources": {
+        "mano": "checkpoints/mano",
+        "interwild.mano": "checkpoints/interwild/common/utils/human_model_files/mano"
+      }
+    },
+    "egohandbench": {
+      "weights": {
+        "interwild": "checkpoints/interwild/interwild.pth"
+      },
+      "resources": {
+        "mano": "checkpoints/mano",
+        "interwild.mano": "checkpoints/interwild/common/utils/human_model_files/mano"
+      }
+    }
+  }
+}
