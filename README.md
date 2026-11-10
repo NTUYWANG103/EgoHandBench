@@ -105,3 +105,5 @@ If your videos come without camera calibration, we recommend estimating the intr
 ## Contact
 
 If you have any questions, feel free to contact [YWANG103@e.ntu.edu.sg](mailto:YWANG103@e.ntu.edu.sg).
+
+For optional InfiniHand fixed-beta/depth-search/SG5 refinement and explicit CUDA runtime options, see [InfiniHand runtime](baselines/infinihand/RUNTIME.md). The original raw baseline defaults and scoring remain unchanged.

@@ -7,9 +7,9 @@ and MANO decoding.  The global-space boundary adds only the conversion from
 predicted camera coordinates through the Stage-2 predicted camera trajectory.
 
 The production contract is fixed to four anchor frames plus sixteen recent
-dense frames. CUDA stream 1 runs LingBotMap/GCA and the mask/detection heads
-ahead of CUDA stream 2. CUDA stream 2 consumes the cached LingBot features and
-predicted boxes for MANO; it never calls the LingBotMap backbone.
+dense frames. CUDA stream 1 runs LingBotMap/GCA ahead of CUDA stream 2.
+CUDA stream 2 runs Camera, Mask and MANO heads in frame order using cached
+backbone features; it never calls the LingBotMap backbone.
 
 All image decoding/resizing and host-to-device copies are intentionally kept
 outside the measured interval. Model loading and output serialization are
@@ -19,10 +19,8 @@ training entrypoint.
 
 from __future__ import annotations
 
-import argparse
-import os
-import subprocess
-import cv2
+BENCH_BRANCH_BF16 = False
+
 import json
 import queue
 import sys
@@ -32,7 +30,6 @@ from dataclasses import dataclass, fields
 from pathlib import Path
 from typing import Any
 
-import numpy as np
 import torch
 
 
@@ -68,6 +65,13 @@ def build_model(checkpoint, device, config_path):
     return model, time.perf_counter() - started
 
 
+def prepare_cuda_graphs(model: LingBotMapHand) -> float:
+    """Compatibility entry point; capture at the active inference precision."""
+    from .runtime.graphs import prepare_image_encoder_graphs
+    return prepare_image_encoder_graphs(model, branch_bf16=BENCH_BRANCH_BF16,
+                                       anchor_frames=ANCHOR_FRAMES)
+
+
 @dataclass
 class DetectionPacket:
     order: int
@@ -77,6 +81,22 @@ class DetectionPacket:
     features: torch.Tensor
     gt_hand_boxes: torch.Tensor | None
     gt_hand_valid: torch.Tensor | None
+    ready: torch.cuda.Event
+
+
+@dataclass
+class BackbonePacket:
+    model: LingBotMapHand
+    images: torch.Tensor
+    intrinsics: torch.Tensor
+    backbone_output: LingBotMapBackboneOutput
+    order: int
+    gt_hand_boxes: torch.Tensor | None
+    gt_hand_valid: torch.Tensor | None
+    gt_hand_masks: torch.Tensor | None
+    bbox_source: str
+    mask_threshold: float
+    mask_blend_alpha: float
     ready: torch.cuda.Event
 
 
@@ -93,7 +113,7 @@ def detection_forward(
     mask_threshold: float = 0.5,
     mask_blend_alpha: float = 0.0,
 ) -> DetectionPacket:
-    with torch.autocast(device_type=images.device.type, enabled=False):
+    with torch.autocast(device_type=images.device.type, dtype=torch.bfloat16, enabled=BENCH_BRANCH_BF16):
         images = images.float()
         intrinsics = intrinsics.float()
         if bbox_source == "gt":
@@ -247,7 +267,7 @@ def mano_forward(
     model: LingBotMapHand,
     packet: DetectionPacket,
 ) -> dict[str, Any]:
-    with torch.autocast(device_type=packet.images.device.type, enabled=False):
+    with torch.autocast(device_type=packet.images.device.type, dtype=torch.bfloat16, enabled=BENCH_BRANCH_BF16):
         packet.images = packet.images.float()
         packet.features = packet.features.float()
         packet.intrinsics = packet.intrinsics.float()
@@ -398,7 +418,7 @@ def concatenate_outputs(chunks: list[dict[str, torch.Tensor]]) -> dict[str, torc
 
 
 @torch.inference_mode()
-def run_dual_stream(
+def _run_all_head_stream(
     model: LingBotMapHand,
     images: torch.Tensor,
     intrinsics: torch.Tensor,
@@ -408,8 +428,10 @@ def run_dual_stream(
     bbox_source: str = "mask",
     mask_threshold: float = 0.5,
     mask_blend_alpha: float = 0.0,
+    capture_postprocess: bool = False,
+    postprocess_storage: str = "cpu",
 ) -> tuple[dict[str, torch.Tensor], dict[str, Any], dict[str, float]]:
-    """Run the only supported production schedule: 4-16, two CUDA streams."""
+    """Run 4+16 backbone memory with ordered heads on a separate CUDA stream."""
     if images.ndim != 5 or images.shape[0] != 1:
         raise ValueError(f"images must have shape [1,T,3,H,W], got {images.shape}")
     if intrinsics.shape[:2] != images.shape[:2] or intrinsics.shape[-2:] != (3, 3):
@@ -438,12 +460,16 @@ def run_dual_stream(
         raise ValueError("mask_blend_alpha requires gt_hand_masks")
     if not 0.0 <= mask_blend_alpha <= 1.0:
         raise ValueError(f"mask_blend_alpha must be in [0,1], got {mask_blend_alpha}")
+    if postprocess_storage not in ("cpu", "cpu_async", "cuda"):
+        raise ValueError("postprocess_storage must be cpu, cpu_async or cuda")
+    if postprocess_storage == "cuda" and images.shape[1]*2*images.shape[-2]*images.shape[-1] > 2*1024**3:
+        raise ValueError("CUDA mask capture exceeds 2 GiB; use CPU capture or shorter chunks")
     device = images.device
     backbone = model.backbone
     detection_stream = torch.cuda.Stream(device=device)
     mano_stream = torch.cuda.Stream(device=device)
     packet_count = int(images.shape[1]) - ANCHOR_FRAMES + 1
-    packets: queue.Queue[DetectionPacket | None] = queue.Queue(
+    packets: queue.Queue[BackbonePacket | None] = queue.Queue(
         maxsize=LOOKAHEAD_PACKETS
     )
     prefilled = threading.Event()
@@ -509,7 +535,7 @@ def run_dual_stream(
                             backbone_output = backbone.inference_stream_step(
                                 packet_images
                             )
-                        packet = detection_forward(
+                        packet = BackbonePacket(
                             model=model,
                             images=packet_images,
                             intrinsics=packet_intrinsics,
@@ -521,6 +547,7 @@ def run_dual_stream(
                             bbox_source=bbox_source,
                             mask_threshold=mask_threshold,
                             mask_blend_alpha=mask_blend_alpha,
+                            ready=torch.cuda.Event(),
                         )
                     end.record(detection_stream)
                     packet.ready.record(detection_stream)
@@ -558,6 +585,9 @@ def run_dual_stream(
                 except BaseException:
                     pass
 
+    from .runtime.capture import AuxiliaryCapture
+    capture_tensor = AuxiliaryCapture(postprocess_storage, images.shape[1], ANCHOR_FRAMES)
+
     def consumer() -> None:
         try:
             prefilled.wait()
@@ -575,9 +605,29 @@ def run_dual_stream(
                     start = torch.cuda.Event(enable_timing=True)
                     end = torch.cuda.Event(enable_timing=True)
                     start.record(mano_stream)
+                    backbone_packet = packet
+                    backbone_packet.backbone_output.pose_enc = backbone.model._predict_camera(
+                        backbone_packet.backbone_output.aggregated_tokens,
+                        causal_inference=True, num_frame_for_scale=ANCHOR_FRAMES,
+                        sliding_window_size=SLIDING_WINDOW_FRAMES,
+                        num_frame_per_block=ANCHOR_FRAMES if backbone_packet.order == 0 else 1,
+                    )["pose_enc"]
+                    with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
+                        packet = detection_forward(**{k:v for k,v in vars(backbone_packet).items() if k != 'ready'})
                     with torch.autocast(device_type="cuda", enabled=False):
                         output = mano_forward(model, packet)
-                    chunks.append(output_subset(output))
+                    for tensor in backbone_packet.backbone_output.aggregated_tokens:
+                        tensor.record_stream(mano_stream)
+                    backbone_packet.backbone_output.patch_features.record_stream(mano_stream)
+                    if backbone_packet.backbone_output.pose_enc is not None:
+                        backbone_packet.backbone_output.pose_enc.record_stream(mano_stream)
+                    del backbone_packet
+                    subset = output_subset(output)
+                    if capture_postprocess:
+                        for key in ('pred_keypoints_2d', 'mano_crop_intrinsics', 'mano_virtual_rotations', 'lsp_valid_mask'):
+                            subset[key] = capture_tensor(key, output[key][0], packet.order)
+                        subset['postprocess_masks'] = capture_tensor('postprocess_masks', output['pred_bbox_mask_probability'][0] > mask_threshold, packet.order)
+                    chunks.append(subset)
                     end.record(mano_stream)
                     mano_events.append((start, end))
                     record_stream_tree(packet.output, mano_stream)
@@ -610,16 +660,38 @@ def run_dual_stream(
         raise RuntimeError("parallel stream did not return exactly one cache receipt")
     timing = {
         "camera_estimation_seconds": wall_seconds,
-        "detection_gpu_stage_sum_seconds": sum(
+        "backbone_gpu_stage_sum_seconds": sum(
             start.elapsed_time(end) for start, end in detection_events
         )
         / 1000.0,
-        "mano_gpu_stage_sum_seconds": sum(
+        "heads_gpu_stage_sum_seconds": sum(
             start.elapsed_time(end) for start, end in mano_events
         )
         / 1000.0,
     }
     return concatenate_outputs(chunks), stream_stats_holder[0], timing
+
+
+def run_dual_stream(model, images, intrinsics, *args, **kwargs):
+    """Overlap current-frame heads with subsequent backbone frames; preserve 4+16 memory."""
+    backbone = model.backbone
+    enabled = backbone.lingbot_enable_camera_head
+    backbone.model.camera_head.clean_kv_cache()
+    backbone.lingbot_enable_camera_head = False
+    try:
+        result = _run_all_head_stream(model, images, intrinsics, *args, **kwargs)
+        # Read the deferred camera cache only after its owning thread has joined.
+        camera_bytes = backbone._camera_kv_cache_bytes(include_deferred=True)
+        stats = result[1]
+        stats["camera_kv_cache_bytes_at_end"] = camera_bytes
+        stats["peak_kv_cache_bytes"] += camera_bytes
+        stats["peak_kv_cache_gb"] = round(stats["peak_kv_cache_bytes"] / 1024**3, 4)
+        stats["cache_accounting"] = "backbone peak plus final camera cache"
+        return result
+    finally:
+        torch.cuda.synchronize(images.device)
+        backbone.model.camera_head.clean_kv_cache()
+        backbone.lingbot_enable_camera_head = enabled
 
 
 @torch.inference_mode()
@@ -682,128 +754,16 @@ def validate_contract(
 
 ROOT = Path(__file__).resolve().parents[1]
 
+
 def parser():
-    p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--video', type=Path, required=True)
-    p.add_argument('--output', type=Path, required=True)
-    p.add_argument('--checkpoint', type=Path, required=True, help='Complete weights exported from the current training runs')
-    p.add_argument('--config', type=Path, default=ROOT / 'configs/infinihand_v1.json')
-    p.add_argument('--intrinsics', type=Path, required=True, help='JSON: fx,fy,cx,cy,image_width,image_height, in original video pixels')
-    p.add_argument('--mask-source', choices=['base', 'sam3-tracking'], default='base')
-    p.add_argument('--mask-threshold', type=float, default=0.9)
-    p.add_argument('--sam3-python', default=sys.executable)
-    p.add_argument('--sam3-source', type=Path, default=Path('/path/to/infinihand/third_party/sam3'))
-    p.add_argument('--sam3-checkpoint', type=Path, default=Path('/path/to/weights/sam3.pt'))
-    p.add_argument('--detector', type=Path, default=Path('/path/to/weights/detector.pt'))
-    p.add_argument('--ba-python', default=sys.executable)
-    p.add_argument('--droid-weights', type=Path, default=Path('/path/to/weights/droid.pth'))
-    p.add_argument('--no-ba', action='store_true')
-    p.add_argument('--ba-mode', choices=['fixed'], default='fixed', help='Fixed-stride keyframe BA')
-    p.add_argument('--ba-stride', type=int, default=10)
-    p.add_argument('--ba-depth-init', choices=['none', 'sparse'], default='none')
-    p.add_argument('--ba-no-reject-outliers', action='store_true', help='Disable update rejection for ablations')
-    p.add_argument('--max-frames', type=int, default=8192)
-    return p
+    from .cli import parser as cli_parser
+    return cli_parser()
+
 
 def main():
-    a = parser().parse_args()
-    if not 0 < a.mask_threshold < 1:
-        raise ValueError('mask threshold must be in (0,1)')
-    if not 4 <= a.max_frames <= 8192:
-        raise ValueError('max-frames must be between 4 and 8192')
-    required = [a.video, a.intrinsics, a.checkpoint, a.config]
-    if a.ba_stride < 1:
-        raise ValueError('Require ba-stride >= 1')
-    if a.mask_source == 'sam3-tracking':
-        required += [a.sam3_checkpoint, a.detector, a.sam3_source]
-    if not a.no_ba:
-        required += [a.droid_weights]
-    for path in required:
-        if not path.exists():
-            raise FileNotFoundError(path)
-    a.output.mkdir(parents=True, exist_ok=True)
-    D = a.output / 'frames'
-    D.mkdir(exist_ok=True)
-    if list(D.glob('*.png')):
-        raise ValueError('Use a fresh output directory to avoid stale frame/mask mixing')
-    Kd = json.loads(a.intrinsics.read_text())
-    cap = cv2.VideoCapture(str(a.video))
-    fps = cap.get(cv2.CAP_PROP_FPS)
-    if not cap.isOpened() or fps <= 0:
-        raise ValueError('Cannot open video or invalid FPS')
-    n = 0
-    while n < a.max_frames:
-        (ok, im) = cap.read()
-        if not ok:
-            break
-        (h, w) = im.shape[:2]
-        if (w, h) != (Kd['image_width'], Kd['image_height']):
-            raise ValueError('Video dimensions differ from intrinsics metadata; explicitly calibrate/rescale before inference')
-        cv2.imwrite(str(D / f'{n:06d}.png'), im)
-        n += 1
-    cap.release()
-    if n < 4:
-        raise ValueError('At least four frames required')
-    if n > 8192:
-        raise ValueError('Maximum supported temporal index is 8192')
-    boxes = np.zeros((n, 2, 4), np.float32)
-    valid = np.zeros((n, 2), bool)
-    if a.mask_source == 'sam3-tracking':
-        import yaml
-        cfg = yaml.safe_load((ROOT / 'third_party/sam3_tracking/configs/default.yaml').read_text())
-        cfg.update(output_fps=fps, write_visualization=False, wandb_mode='disabled')
-        cf = a.output / 'sam3_config.yaml'
-        cf.write_text(yaml.safe_dump(cfg))
-        env = os.environ.copy()
-        env['PYTHONPATH'] = str(ROOT / 'third_party/sam3_tracking/src')
-        subprocess.run([a.sam3_python, '-m', 'sam3_tracking', 'frames', '--frames-dir', str(D.resolve()), '--output-dir', str((a.output / 'sam3').resolve()), '--config', str(cf.resolve()), '--detector-weight', str(a.detector.resolve()), '--sam3-checkpoint', str(a.sam3_checkpoint.resolve()), '--sam3-src', str(a.sam3_source.resolve())], env=env, check=True)
-        records = [json.loads(line) for line in (a.output / 'sam3/masks.jsonl').read_text().splitlines()]
-        assert len(records) == n * 2
-        seen = set()
-        for row in records:
-            i = int(row['frame_idx'])
-            s = {'right': 0, 'left': 1}[row['side_name']]
-            assert 0 <= i < n and (i, s) not in seen
-            seen.add((i, s))
-            if row['mask_box_xyxy'] is not None and row['mask_area'] > 0:
-                boxes[i, s] = np.array(row['mask_box_xyxy']) / [w, h, w, h]
-                valid[i, s] = True
-    (model, load_seconds) = build_model(a.checkpoint, torch.device('cuda:0'), a.config)
-    images = np.stack([cv2.resize(cv2.imread(str(D / f'{i:06d}.png')), (518, 378))[:, :, ::-1] for i in range(n)])
-    images = torch.from_numpy(np.ascontiguousarray(images)).permute(0, 3, 1, 2).float().div_(255).unsqueeze(0).cuda()
-    K = np.array([[Kd['fx'], 0, Kd['cx']], [0, Kd['fy'], Kd['cy']], [0, 0, 1]], np.float32)
-    K[0] *= 518 / w
-    K[1] *= 378 / h
-    intr = torch.from_numpy(K).view(1, 1, 3, 3).expand(1, n, 3, 3).cuda()
-    opts = dict(bbox_source='gt' if a.mask_source == 'sam3-tracking' else 'mask', mask_threshold=a.mask_threshold)
-    if a.mask_source == 'sam3-tracking':
-        opts.update(gt_hand_boxes=torch.from_numpy(boxes)[None].cuda(), gt_hand_valid=torch.from_numpy(valid)[None].cuda())
-    with torch.inference_mode():
-        (out, stats, timing) = run_dual_stream(model, images, intr, **opts)
-        (world, _) = camera_to_predicted_global(out)
-    validate_contract(stats, n)
-    arr = {k: v.float().cpu().numpy() for (k, v) in out.items()}
-    poses = world['pred_camera_to_anchor'].float().cpu().numpy()
-    if a.mask_source == 'base':
-        boxes = arr['mask_tight_boxes']
-        valid = arr['presence_mask'] > 0.5
-    for (key, value) in arr.items():
-        if not np.isfinite(value).all():
-            raise ValueError('Non-finite model output: ' + key)
-    np.savez_compressed(a.output / 'camera_space.npz', **arr, valid=valid)
-    np.savez_compressed(a.output / 'ba_inputs.npz', poses=poses, boxes=boxes)
-    del out, world, model, images, intr
-    torch.cuda.empty_cache()
-    if not a.no_ba:
-        subprocess.run([a.ba_python, '-m', 'infinihand.sparse_ba_backend', '--output', str(a.output.resolve()), '--intrinsics', str(a.intrinsics.resolve()), '--weights', str(a.droid_weights.resolve()), '--stride', str(a.ba_stride), '--depth-init', a.ba_depth_init] + (['--no-reject-outliers'] if a.ba_no_reject_outliers else []), cwd=ROOT, check=True)
-        poses = np.load(a.output / 'trajectory.npz')['poses']
-    if not np.isfinite(poses).all():
-        raise ValueError('Non-finite trajectory')
-    rot = poses[:, :3, :3]
-    trans = poses[:, :3, 3]
-    np.savez_compressed(a.output / 'world_space.npz', camera_to_world=poses, world_joints=np.einsum('tij,thnj->thni', rot, arr['camera_joints']) + trans[:, None, None, :], world_vertices=np.einsum('tij,thnj->thni', rot, arr['camera_vertices']) + trans[:, None, None, :], world_global_orient=rot[:, None] @ arr['camera_global_orient'], world_translation=np.einsum('tij,thj->thi', rot, arr['camera_translation']) + trans[:, None, :], hand_pose=arr['hand_pose'], betas=arr['betas'], valid=valid)
-    receipt = dict(ba_depth_init=None if a.no_ba else a.ba_depth_init, ba_reject_outliers=not (a.no_ba or a.ba_no_reject_outliers), ba_mode=None if a.no_ba else 'fixed', status='complete', frames=n, fps=fps, hand_slots=['right', 'left'], mask_source=a.mask_source, mask_threshold=a.mask_threshold, ba_stride=None if a.no_ba else a.ba_stride, coordinate_frame='first predicted camera', checkpoint=str(a.checkpoint), model_load_seconds=load_seconds, timing=timing, cache=stats)
-    (a.output / 'SUCCESS.json').write_text(json.dumps(receipt, indent=2))
-    print(json.dumps(receipt, indent=2))
+    from .cli import main as cli_main
+    cli_main(sys.modules[__name__])
+
+
 if __name__ == '__main__':
     main()
