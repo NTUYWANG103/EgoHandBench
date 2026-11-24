@@ -1,0 +1,33 @@
+{
+  "default": "official",
+  "versions": {
+    "official": {
+      "weights": {
+        "hamer": "checkpoints/hamer/hamer_ckpts/checkpoints/hamer.ckpt"
+      },
+      "resources": {
+        "mano": "checkpoints/mano",
+        "hamer.data": "checkpoints/hamer",
+        "hamer.config": "checkpoints/hamer/hamer_ckpts/model_config.yaml",
+        "detector": "checkpoints/hamer/pretrained_models/detector.pt",
+        "dyn_hamr.data": "checkpoints/dyn_hamr/_DATA/data",
+        "dyn_hamr.bmc": "checkpoints/dyn_hamr/_DATA/BMC",
+        "dyn_hamr.droid": "checkpoints/dyn_hamr/_DATA/droid.pth"
+      }
+    },
+    "egohandbench": {
+      "weights": {
+        "hamer": "checkpoints/hamer/hamer_ckpts/checkpoints/hamer.ckpt"
+      },
+      "resources": {
+        "mano": "checkpoints/mano",
+        "hamer.data": "checkpoints/hamer",
+        "hamer.config": "checkpoints/hamer/hamer_ckpts/model_config.yaml",
+        "detector": "checkpoints/hamer/pretrained_models/detector.pt",
+        "dyn_hamr.data": "checkpoints/dyn_hamr/_DATA/data",
+        "dyn_hamr.bmc": "checkpoints/dyn_hamr/_DATA/BMC",
+        "dyn_hamr.droid": "checkpoints/dyn_hamr/_DATA/droid.pth"
+      }
+    }
+  }
+}

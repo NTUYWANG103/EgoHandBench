@@ -1,0 +1,45 @@
+# ACE-Ego-Hand (K-given): camera intrinsics are used by the cam_trans decode.
+name: ace_ego_hand_k
+device: cuda
+seed: 42
+paths:
+  model_root: ckpt/Wan2.2-Fun-5B-Control
+  videox_config: third_party/config/wan2.2/wan_civitai_5b.yaml
+  caption_embed: cache/caption_embed.pt
+backbone:
+  tap_layers:
+  - 15
+  mh_expand: false
+  train_backbone: true
+  gradient_checkpointing: true
+  feature_mode: noised_video
+  nv_sigma: 0.0
+  lora:
+    lora_rank: 64
+    lora_alpha: 64
+    lora_dropout: 0.0
+  raymap: true
+  self_ray_pe: true
+projector:
+  hidden_dim: 384
+  num_temporal_layers: 4
+  num_heads: 8
+  ffn_mult: 4
+  dropout: 0.0
+  max_spatial_tokens: 4096
+  max_video_frames: 256
+  cam_trans_decode: mixed_pnp
+  spatial_pe_mode: interp2d
+  betas_scope: per_hand
+  per_hand_betas_source: slot_mean
+  spatial_pool_mode: slot
+  num_direct_joints: 21
+  joints2d_readout: pooled
+  temporal_arch: alternating
+  alt_num_register: 4
+  alt_num_layers: 4
+  alt_query_mode: joint
+  alt_temporal_rope: true
+  alt_mem_tokens: 0
+  use_ray_pe: true
+  ray_pe_n_freqs: 8

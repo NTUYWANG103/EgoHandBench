@@ -1,0 +1,15 @@
+
+
+Upstream publication attribution retained from removed documentation.
+
+Original document(s): third_party/HandMesh/complement_data.md
+
+If you use this dataset in your research, please cite:
+
+```
+@inproceedings{bib:MobRecon,
+  title={MobRecon: Mobile-Friendly Hand Mesh Reconstruction from Monocular Image},
+  author={Chen, Xingyu and Liu, Yufeng and Dong Yajiao and Zhang, Xiong and Ma, Chongyang and Xiong, Yanmin and Zhang, Yuan and Guo, Xiaoyan},
+  booktitle={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
+  year={2022}
+```

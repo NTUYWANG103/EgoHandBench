@@ -1,0 +1,14 @@
+{
+  "default": "egohandbench",
+  "versions": {
+    "egohandbench": {
+      "weights": {
+        "vidihand_v1": "projector.safetensors"
+      },
+      "resources": {
+        "vidihand_v1.vdm": "vdm.safetensors",
+        "mano": "mano"
+      }
+    }
+  }
+}

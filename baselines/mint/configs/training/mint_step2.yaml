@@ -1,0 +1,103 @@
+# MINT Stage 2 camera-only fine-tuning recipe.
+# Run from the repository root and set train.init_from to your Stage 1 checkpoint.
+model:
+  name: split_fov_head
+  pretrained: null
+  enable_hand: true
+  hand_head:
+    name: refine
+    dim: 512
+    num_queries: 4
+    num_iterations: 2
+    trunk_depth: 1
+    rotation_refine_mode: compose_axis_angle
+    rotation_delta_frame: local
+    rotation_delta_max_angle_deg: 30.0
+  enable_hand_presence: true
+  hand_presence_head:
+    dim: 256
+    num_heads: 4
+  fov_head:
+    dim: 512
+    num_heads: 8
+    trunk_depth: 2
+    initial_fov_deg: [60.0, 75.0]
+    min_fov_rad: 1.0e-4
+  backbone:
+    img_size: 518
+    patch_size: 14
+    embed_dim: 1024
+    use_sdpa: true
+    use_gradient_checkpoint: false
+    camera_num_iterations: 4
+    enable_camera: true
+    enable_depth: false
+    enable_point: false
+    enable_local_point: false
+  freeze:
+    - "backbone.aggregator*"
+    - "backbone.fov_head*"
+    - "hand_head*"
+    - "hand_presence_head*"
+
+data:
+  name: lerobot_v3
+  root:
+    - data/lerobot/stage2/lerobot_v3  # Set to your prepared camera-trajectory dataset.
+  sample_seed: 42
+  camera_translation_normalization:
+    enabled: true
+    cache_dir: output/cache/camera_normalization
+    workers: 32
+    files_per_task: 8
+    window_batch_size: 4096
+  clip_len: 32
+  clip_stride: 32
+  size_hw: [378, 518]
+  batch_size: 1
+  num_workers: 8
+  shuffle: true
+  require_mano_gt: false
+  require_kpt21_gt: false
+
+loss:
+  camera:
+    weight: 2.0
+    terms:
+      - {name: trans_l1, weight: 1.0}
+      - {name: rot_geo, weight: 1.0}
+      - {name: trans_vel_l1, weight: 0.5}
+      - {name: rot_vel_geo, weight: 0.5}
+
+train:
+  run_name: mint_stage2_camera_only
+  init_from: checkpoints/stage1/model.safetensors
+  reproducibility:
+    enabled: true
+    seed: 42
+    deterministic_algorithms: false
+  epochs: 1
+  log_every: 5
+  ckpt_every: 500
+  grad_clip: 0.0
+  grad_value_clip: 1.0
+  grad_accum: 2
+  mixed_precision: bf16
+  wandb:
+    enabled: true
+    project: lingbotmap-distill
+    name: null
+    mode: offline
+
+optim:
+  lr: 5.0e-5
+  param_groups:
+    - {match: backbone.camera_head, lr: 5.0e-5, grad_value_clip: 1.0}
+  weight_decay: 0.05
+  warmup_steps: 2000
+
+dist:
+  nnodes: 4
+  gpus_per_node: 8
+  master_addr: 127.0.0.1
+  master_port: 29500

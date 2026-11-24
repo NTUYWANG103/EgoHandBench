@@ -1,0 +1,27 @@
+{
+  "default": "official",
+  "versions": {
+    "official": {
+      "weights": {
+        "wilor": "checkpoints/wilor/pretrained_models/wilor_final.ckpt"
+      },
+      "resources": {
+        "mano": "checkpoints/mano",
+        "wilor.config": "checkpoints/wilor/pretrained_models/model_config.yaml",
+        "wilor.detector": "checkpoints/wilor/pretrained_models/detector.pt",
+        "wilor.mano": "checkpoints/wilor/mano_data"
+      }
+    },
+    "egohandbench": {
+      "weights": {
+        "wilor": "checkpoints/wilor/pretrained_models/wilor.ckpt"
+      },
+      "resources": {
+        "mano": "checkpoints/mano",
+        "wilor.config": "checkpoints/wilor/pretrained_models/model_config.yaml",
+        "wilor.detector": "checkpoints/wilor/pretrained_models/detector.pt",
+        "wilor.mano": "checkpoints/wilor/mano_data"
+      }
+    }
+  }
+}

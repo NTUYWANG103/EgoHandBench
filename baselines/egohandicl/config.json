@@ -1,0 +1,20 @@
+{
+  "default": "egohandbench",
+  "versions": {
+    "egohandbench": {
+      "weights": {
+        "egohandicl": "checkpoints/egohandicl/egohandicl.pt",
+        "wilor": "checkpoints/wilor/pretrained_models/wilor.ckpt"
+      },
+      "resources": {
+        "mano": "checkpoints/mano",
+        "egohandicl.templates": "checkpoints/egohandicl/templates.npz",
+        "egohandicl.vlm": "checkpoints/qwen/Qwen2.5-VL-7B-Instruct",
+        "egohandicl.text": "checkpoints/qwen/Qwen-7B",
+        "wilor.config": "checkpoints/wilor/pretrained_models/model_config.yaml",
+        "wilor.detector": "checkpoints/wilor/pretrained_models/detector.pt",
+        "wilor.mano": "checkpoints/wilor/mano_data"
+      }
+    }
+  }
+}

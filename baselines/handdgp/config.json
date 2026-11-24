@@ -1,0 +1,25 @@
+{
+  "default": "official",
+  "versions": {
+    "official": {
+      "weights": {
+        "handdgp": "checkpoints/handdgp/handdgp_freihand.ckpt"
+      },
+      "resources": {
+        "mano": "checkpoints/mano",
+        "handdgp.template": "checkpoints/handdgp/third_party/HandMesh/template",
+        "wilor.detector": "checkpoints/wilor/pretrained_models/detector.pt"
+      }
+    },
+    "egohandbench": {
+      "weights": {
+        "handdgp": "checkpoints/handdgp/handdgp.ckpt"
+      },
+      "resources": {
+        "mano": "checkpoints/mano",
+        "handdgp.template": "checkpoints/handdgp/third_party/HandMesh/template",
+        "wilor.detector": "checkpoints/wilor/pretrained_models/detector.pt"
+      }
+    }
+  }
+}

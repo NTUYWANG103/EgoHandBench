@@ -1,0 +1,37 @@
+{
+  "default": "official",
+  "versions": {
+    "official": {
+      "weights": {
+        "hawor": "checkpoints/hawor/weights/hawor/checkpoints/hawor.ckpt"
+      },
+      "resources": {
+        "mano": "checkpoints/mano",
+        "hawor.config": "checkpoints/hawor/weights/hawor/model_config.yaml",
+        "hawor.detector": "checkpoints/hawor/weights/external/detector.pt",
+        "hawor.mano": "checkpoints/hawor/_DATA/data/mano",
+        "hawor.mano_left": "checkpoints/hawor/_DATA/data_left/mano_left",
+        "hawor.mean_params": "checkpoints/hawor/_DATA/data/mano_mean_params.npz",
+        "hawor.infiller": "checkpoints/hawor/weights/hawor/checkpoints/infiller.pt",
+        "hawor.droid": "checkpoints/hawor/weights/external/droid.pth",
+        "hawor.metric3d": "checkpoints/hawor/weights/external/metric_depth_vit_large_800k.pth"
+      }
+    },
+    "egohandbench": {
+      "weights": {
+        "hawor": "checkpoints/hawor/weights/hawor/checkpoints/hawor.ckpt"
+      },
+      "resources": {
+        "mano": "checkpoints/mano",
+        "hawor.config": "checkpoints/hawor/weights/hawor/model_config.yaml",
+        "hawor.detector": "checkpoints/hawor/weights/external/detector.pt",
+        "hawor.mano": "checkpoints/hawor/_DATA/data/mano",
+        "hawor.mano_left": "checkpoints/hawor/_DATA/data_left/mano_left",
+        "hawor.mean_params": "checkpoints/hawor/_DATA/data/mano_mean_params.npz",
+        "hawor.infiller": "checkpoints/hawor/weights/hawor/checkpoints/infiller.pt",
+        "hawor.droid": "checkpoints/hawor/weights/external/droid.pth",
+        "hawor.metric3d": "checkpoints/hawor/weights/external/metric_depth_vit_large_800k.pth"
+      }
+    }
+  }
+}

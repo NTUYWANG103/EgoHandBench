@@ -1,0 +1,36 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+*.egg-info/
+build/
+/dist/
+/outputs/
+/results/
+
+.ruff_cache/
+
+# Local data, licensed assets and credentials
+/checkpoints/*
+/datasets/*
+!/datasets/sample/
+!/datasets/_trace/
+.env
+.env.*
+.envrc
+
+# Upstream SLAM sources cloned by setup_slam.py
+/baselines/dyn_hamr/third_party/DROID-SLAM/
+/baselines/hawor/third_party/HaWoR/
+
+# Local testing and debugging
+/debug/
+AGENTS.md
+.vscode
+tests
+
+# Local benchmark training, checkpoints and evaluation runs
+/training/
+
+# Dyn-HaMR optimisation outputs written next to the vendored runner (run_opt.py)
+/baselines/dyn_hamr/dyn-hamr/runs_left/

@@ -1,0 +1,1 @@
+../../../../../checkpoints/hawor/official/checkpoints/hawor/_DATA/data_left/mano_left/MANO_LEFT.pkl

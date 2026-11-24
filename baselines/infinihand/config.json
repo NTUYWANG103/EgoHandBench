@@ -1,0 +1,21 @@
+{
+  "default": "official",
+  "versions": {
+    "official": {
+      "weights": {
+        "infinihand": "checkpoints/infinihand/infinihand_v1.pt"
+      },
+      "resources": {
+        "mano": "checkpoints/mano"
+      }
+    },
+    "egohandbench": {
+      "weights": {
+        "infinihand": "checkpoints/infinihand/infinihand_egobench.pt"
+      },
+      "resources": {
+        "mano": "checkpoints/mano"
+      }
+    }
+  }
+}

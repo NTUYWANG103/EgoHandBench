@@ -1,0 +1,1 @@
+../../../../../checkpoints/handdgp/official/checkpoints/handdgp/third_party/HandMesh/template/transform.pkl

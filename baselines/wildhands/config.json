@@ -1,0 +1,27 @@
+{
+  "default": "official",
+  "versions": {
+    "official": {
+      "weights": {
+        "wildhands": "checkpoints/wildhands/wildhands.ckpt"
+      },
+      "resources": {
+        "mano": "checkpoints/mano",
+        "vitdet": "checkpoints/vitdet/model_final_f05665.pkl",
+        "wildhands.vitpose": "checkpoints/wildhands/wholebody.pth",
+        "wildhands.torch": "checkpoints/wildhands/torch"
+      }
+    },
+    "egohandbench": {
+      "weights": {
+        "wildhands": "checkpoints/wildhands/wildhands.ckpt"
+      },
+      "resources": {
+        "mano": "checkpoints/mano",
+        "vitdet": "checkpoints/vitdet/model_final_f05665.pkl",
+        "wildhands.vitpose": "checkpoints/wildhands/wholebody.pth",
+        "wildhands.torch": "checkpoints/wildhands/torch"
+      }
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "default": "official",
+  "versions": {
+    "official": {
+      "weights": {
+        "egoforce": "checkpoints/egoforce/model_weights.pth"
+      },
+      "resources": {
+        "mano": "checkpoints/mano",
+        "egoforce.pose": "checkpoints/egoforce/epoch_460.pth",
+        "egoforce.detector": "checkpoints/egoforce/detector.torchscript",
+        "egoforce.mano": "checkpoints/egoforce/mano"
+      }
+    },
+    "egohandbench": {
+      "weights": {
+        "egoforce": "checkpoints/egoforce/egoforce.pth"
+      },
+      "resources": {
+        "mano": "checkpoints/mano",
+        "egoforce.pose": "checkpoints/egoforce/epoch_460.pth",
+        "egoforce.detector": "checkpoints/egoforce/detector.torchscript",
+        "egoforce.mano": "checkpoints/egoforce/mano"
+      }
+    }
+  }
+}

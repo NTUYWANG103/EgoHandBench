@@ -1,0 +1,29 @@
+{
+  "default": "official",
+  "versions": {
+    "official": {
+      "weights": {
+        "hamba": "checkpoints/hamba/checkpoints/hamba.ckpt"
+      },
+      "resources": {
+        "mano": "checkpoints/mano",
+        "hamer.data": "checkpoints/hamer",
+        "hamba.config": "checkpoints/hamba/model_config.yaml",
+        "vitdet": "checkpoints/vitdet/model_final_f05665.pkl",
+        "vitpose": "checkpoints/hamer/vitpose_ckpts/vitpose+_huge/wholebody.pth"
+      }
+    },
+    "egohandbench": {
+      "weights": {
+        "hamba": "checkpoints/hamba/checkpoints/hamba.ckpt"
+      },
+      "resources": {
+        "mano": "checkpoints/mano",
+        "hamer.data": "checkpoints/hamer",
+        "hamba.config": "checkpoints/hamba/model_config.yaml",
+        "vitdet": "checkpoints/vitdet/model_final_f05665.pkl",
+        "vitpose": "checkpoints/hamer/vitpose_ckpts/vitpose+_huge/wholebody.pth"
+      }
+    }
+  }
+}
